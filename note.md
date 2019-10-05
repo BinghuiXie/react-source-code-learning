@@ -188,7 +188,7 @@ ReactComponent 是写React过程中最常用的一个Class了，一般来说都�
 React 开发过程中，操作 DOM 的情况是比较少的，毕竟他不需要通过选取节点来改变其内容，只需要改变绑定在这个节点上的数据就可以，但是在某些情况下，操作 DOM 也是不得不需要的，比如说操作动画，那么在 React 中获取 DOM 节点就需要用到 ref   
 ref有三种用法
 + stringRef
-    通过挂载在 <kbd>this</kdb> 上的 refs 对象中的 stringRef 得到对应的节点
+    通过挂载在 <kbd>this</kbd> 上的 refs 对象中的 stringRef 得到对应的节点
     ```javascript
         class RefDemo1 extends React.Component {
           render() {
@@ -232,3 +232,48 @@ ref有三种用法
           }
         }
     ```
+    
+### forwardRef
+
+[React forwardRef官方解释](https://reactjs.org/docs/forwarding-refs.html)
+
+forwardRef 不是很常用，但是在某些特定的情况下，使用 forwardRef 会方便许多。
+forwardRef 是一种动态的将 ref 通过一个组件传给其子组件的一种技术，它在大部分的情况下是用不到的，然而，在一些特定的情况下，会非常有用。
+假设有一个 FancyButton 组件封装了一个 button：
+```javascript
+function FancyButton(props) {
+  return (
+    <button className="FancyButton">
+      {props.children}
+    </button>
+  );
+}
+```
+然后在另一个组件里将其作为子组件使用：
+```javascript
+import FancyButton from './fancyButton';
+
+function Comp() {
+  return (
+    <div>
+        <FancyButton/>
+    </div>
+  )
+}
+```
+这些组件(FancyButton)的使用方式与常规的DOM按钮和输入类似，为了管理焦点、选择或动画，访问它们的DOM节点可能是不可避免的。
+然而，因为 ref 不会被认为是 props 里面的一个属性(从前面的源码学习中我们已经清楚了这一点)，所以通过 ref 在 FancyButton 上设置显然是不可能传到里面的 button 上的，所以就需要使用 forwardRef：   
+```javascript
+const FancyButton = React.forwardRef((props, ref) => (
+  <button ref={ref} className="FancyButton">
+    {props.children}
+  </button>
+));
+
+// You can now get a ref directly to the DOM button:
+const ref = React.createRef();
+<FancyButton ref={ref}>Click me!</FancyButton>
+```
+通过 React 提供的 forwardRef API，回调函数接收的第一个参数还是 props，第二个参数是 ref (只有使用了 forwardRef 才会有第二个参数)。
+这样，通过 ref 再传到 button 上就可以像使用正常的 button 一样使用这个组件了。
+

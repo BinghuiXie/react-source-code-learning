@@ -1,0 +1,23 @@
+import React from 'react';
+
+function logProps(WrappedComponent) {
+  class LogProps extends React.Component {
+    componentDidUpdate(prevProps) {
+      console.log('old props:', prevProps);
+      console.log('new props:', this.props);
+    }
+    
+    componentDidMount () {
+      console.log("----------logProps----------");
+      console.log(this.props);
+    }
+    
+    render() {
+      return <WrappedComponent {...this.props} />;
+    }
+  }
+  
+  return LogProps;
+}
+
+export default logProps;

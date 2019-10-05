@@ -50,4 +50,129 @@ React.createElement(
     React.createElement("span", { class: "children" }, "child")
 );
 ```
-这次呢，<kbd>createElement</kbd>函数接受了四个参数，前面两个参数好理解就是标签名称和其属性，而第三个和第四个参数都是这个标签的子元素，也就是说，<kbd>createElement</kbd>函数会把第三个参数（包括第三个）以后的参数都认为是该标签的同级的子元素，它会把这个剩余的参数提取出来作为一个子元素的数组。
+这次呢，<kbd>createElement</kbd>函数接受了四个参数，前面两个参数好理解就是标签名称和其属性，而第三个和第四个参数都是这个标签的子元素，也就是说，<kbd>createElement</kbd>函数会把第三个参数（包括第三个）以后的参数都认为是该标签的同级的子元素，它会把这些剩余的参数提取出来，并组成一个子元素的数组。   
+那么，如果是一个组件作为标签呢？
+```typescript jsx
+function Tool(props) {
+  return ( <div>{props.children}</div> )
+}
+
+<Tool className="Tool">
+    <span className="tool-children">Tool Children</span>
+</Tool>
+```
+```javascript
+// 转换后的代码
+function Tool(props) {
+  return React.createElement("div", null, props.children);
+}
+
+React.createElement(
+  Tool, 
+  { className: "Tool" }, 
+  React.createElement("span", { className: "tool-children" }, "Tool Children")
+);
+```
+注意到，当使用组件作为标签的时候，<kbd>createElement</kbd>函数第一个参数不再是一个字符串了，而是一个变量，这就是为什么我们自定义的组件的名字要大写的原因，如果不大写的话，<kbd>createElement</kbd>会将其当做一个 html 的预定义标签从而将其作为字符串进行处理，反之如果大写了就是会当做变量处理了。
+
+那么<kbd>createElement</kbd>函数会根据所传入的 type (第一个参数) 返回一个React Element？
+
+### ReactElement
+所以函数<kbd>createElement</kbd>最终是返回了一个 ReactElement，在这个过程中<kbd>createElement</kbd>函数对传入的参数进行了一系列的处理以后，最终返回了一个 ReactElement 对象。
+<kbd>createElement</kbd>函数源码地址：**packages/react/src/ReactElement.js**
+
+那么这个函数具体对传入的参数进行了哪些处理，这些就要从代码中得到答案了(我这里只截取了部分代码)。
+
+```javascript
+    const RESERVED_PROPS = {
+      key: true,
+      ref: true,
+      __self: true,
+      __source: true,
+    };
+    const hasOwnProperty = Object.prototype.hasOwnProperty;
+    function createElement(type, config, children) {  
+      let propName;
+      const props = {};
+    
+      let key = null;
+      let ref = null;
+      let self = null;
+      let source = null;
+    
+      if (config != null) {
+        if (hasValidRef(config)) {
+          // 如果配置项（传入的标签的属性）里有 ref 的话，进行如下操作
+          ref = config.ref;
+        }
+        if (hasValidKey(config)) {
+          // 如果配置项有 key 值的话（一般来说是循环项），进行如下操作
+          key = '' + config.key;
+        }
+    
+        for (propName in config) {
+          // 判断传入的 config 里面有没有对应的属性，同时该属性不能是 RESERVED_PROPS 中的属性
+          // 如果满足以上两个条件就将其放到 props 对象里面
+          // hasOwnProperty 是对 Object.prototype.hasOwnProperty 的一个引用。
+          // hasOwnProperty.call(object, key) 这样写法优于 object.hasOwnProperty(key)
+          if (
+            hasOwnProperty.call(config, propName) &&
+            !RESERVED_PROPS.hasOwnProperty(propName)
+          ) {
+            props[propName] = config[propName];
+          }
+        }
+      }
+      // 获取剩余的参数（剩余的都是该标签对应的子元素的项）
+      const childrenLength = arguments.length - 2;
+      if (childrenLength === 1) {
+        props.children = children;
+      } else if (childrenLength > 1) {
+        // 把子元素组成一个数组返回
+        const childArray = Array(childrenLength);
+        for (let i = 0; i < childrenLength; i++) {
+          childArray[i] = arguments[i + 2];
+        }
+        props.children = childArray;
+      }
+      // 判断一下有没有 defaultProps，如果有的话寻找一下 props 对象里面对应的属性有没有值，如果没有就用 defaultProps 里面的值来代替
+      if (type && type.defaultProps) {
+        const defaultProps = type.defaultProps;
+        for (propName in defaultProps) {
+          if (props[propName] === undefined) {
+            props[propName] = defaultProps[propName];
+          }
+        }
+      }
+      return ReactElement(
+        type,
+        key,
+        ref,
+        self,
+        source,
+        ReactCurrentOwner.current,
+        props,
+      );
+}
+```
+最后返回的 <kbd>ReactElement</kbd> 函数就是一个集合，返回一个对象，这个对象的属性是经过 <kbd>createElement</kbd> 处理的 ，相关代码如下(只拿了部分代码)：
+```javascript
+const ReactElement = function(type, key, ref, self, source, owner, props) {
+  const element = {
+    // This tag allows us to uniquely identify this as a React Element
+    // REACT_ELEMENT_TYPE 就是一个 symbol
+    $$typeof: REACT_ELEMENT_TYPE,
+
+    // Built-in properties that belong on the element
+    type: type,
+    key: key,
+    ref: ref,
+    props: props,
+
+    // Record the component responsible for creating this element.
+    _owner: owner,
+  };
+
+  return element;
+};
+```

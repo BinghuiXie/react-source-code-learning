@@ -176,3 +176,59 @@ const ReactElement = function(type, key, ref, self, source, owner, props) {
   return element;
 };
 ```
+
+### ReactComponent ReactPureComponent
+
+源码地址：react/packages/react/src/ReactBaseClasses.js
+
+ReactComponent 是写React过程中最常用的一个Class了，一般来说都是直接 extends Component ... 这节就深入到 Component 的源码来对其进行详细的分析
+
+### React createRef & ref
+
+React 开发过程中，操作 DOM 的情况是比较少的，毕竟他不需要通过选取节点来改变其内容，只需要改变绑定在这个节点上的数据就可以，但是在某些情况下，操作 DOM 也是不得不需要的，比如说操作动画，那么在 React 中获取 DOM 节点就需要用到 ref   
+ref有三种用法
++ stringRef
+    通过挂载在 <kbd>this</kdb> 上的 refs 对象中的 stringRef 得到对应的节点
+    ```javascript
+        class RefDemo1 extends React.Component {
+          render() {
+            return <p type="text" ref="stringRef" >stringRef</p>;
+          }
+        
+          componentDidMount() {
+            this.refs.stringRef.textContent = "stringRef text changed";
+          }
+        }
+    ```
++ function
+    这里 element 代表的就是 DOM 节点，把它赋值给了 this.ref
+    ```javascript
+        class RefDemo2 extends React.Component {
+          render() {
+            return <p type="text" ref={element => { this.ref = element }>function ref</p>;
+          }
+          componentDidMount() {
+            this.ref.textContent = "function ref text changed";
+          }
+        }
+    ```
++ createRef
+    这个是三种使用 ref 中唯一涉及到使用了 react 的中的一个 API 的， createRef 返回一个对象，对象中只有一个 current 属性，默认值是 null
+    ```javascript
+        class RefDemo3 extends React.Component {
+          constructor(props) {
+            super(props);
+        
+            this.inputRef = React.createRef();
+          }
+        
+          render() {
+            return <input type="text" ref={this.inputRef} />;
+          }
+        
+          componentDidMount() {
+            // 通过 current 属性来引用
+            this.inputRef.current.focus();
+          }
+        }
+    ```

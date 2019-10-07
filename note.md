@@ -277,3 +277,108 @@ const ref = React.createRef();
 通过 React 提供的 forwardRef API，回调函数接收的第一个参数还是 props，第二个参数是 ref (只有使用了 forwardRef 才会有第二个参数)。
 这样，通过 ref 再传到 button 上就可以像使用正常的 button 一样使用这个组件了。
 
+(根据上面的例子，如果不适用 forwardRef 的话，那么通过 createRef 创建的 ref 指向的是 FancyButton 这个组件，但是如果利用 forwardRef 创建了 FancyButton ，那么 ref 指向的就是里面的 button 了)
+
+回到 forwardRef 的源码：
+```javascript
+export default function forwardRef<Props, ElementType: React$ElementType>(
+  render: (props: Props, ref: React$Ref<ElementType>) => React$Node,
+) {
+  // ... 我把 _DEV_ 那一段代码暂时忽略了
+  return {
+    $$typeof: REACT_FORWARD_REF_TYPE,
+    render,
+  };
+}
+```
+可以看出，他就是返回了一个对象，也就是说，上面的代码的 FancyButton 其实就是一个对象，当我们以一个组件的形式去使用他的时候，React.createElement 会返回一个下面的这样的对象：
+```javascript
+const ReactElement = function(type, key, ref, self, source, owner, props) {
+  const element = {
+    $$typeof: REACT_ELEMENT_TYPE,
+    // Built-in properties that belong on the element
+    // 因为传入的是 FancyButton， 所以会把这个 FancyButton 变量作为 type 传入，这个 FancyButton 其实就是 { $$typeof: REACT_FORWARD_REF_TYPE, render };
+    // 注意 element 对象里面的 $$typeof 和 FancyButton 里面的 $$typeof 的值不是一样的
+    type: FancyButton, 
+    key: key,
+    ref: ref,
+    props: props,
+
+    _owner: owner,
+  };
+
+  return element;
+};
+```
+
+### Context
+
+Context 的思想是我觉得和 redux 是有点像的，都是有一个上层的公共的存储数据的地方可供深层子组件拿到该数据，就不用一层一层通过 props 传了。   
+React 使用 context 需要调用 <kbd>createContext</kbd> API。   
+```javascript
+const MyContext = React.createContext(defaultValue);
+```
+<kbd>createContext</kbd>会创建一个对象，里面有两个比较主要的：Provider 和 Consumer。   
+两个都是 React 的组件，使用 Provider 包裹一个组件，那么这个组件下面的所有子组件都会订阅到 context 和 context 的改变。
+```javascript
+const { Provider } = MyContext;
+<Provider>
+    /* Toolbar 以及其子组件或者更深层次的组件都可以使用 MyContext 里面的数据*/
+    <Toolbar />
+</Provider>    
+```
+Provider 接收一个 value 属性，这个 value 会被传给 Provider 组件所有的后代组件，如果没有 value 会使用默认的 defaultValue。   
+需要使用 context 里面的数据的子组件，需要对对应的 context 进行订阅，只有订阅后才能通过 this.context 拿到里面的数据：
+```javascript
+class MyClass extends React.Component {
+  render() {
+    let value = this.context;
+    /* render something based on the value of MyContext */
+  }
+}
+MyClass.contextType = MyContext;
+```
+通过 class 的 contextType 属性对需要用的 context 进行订阅。    
+更多关于 context 的使用，详见[ react 官方文档](https://reactjs.org/docs/context.html)。   
+这里给出 context [使用样例](https://reactjs.org/docs/context.html#examples)，来自 react 官方文档。    
+接下来简单看一下 createContext 的代码：
+```javascript
+export function createContext<T>(
+  defaultValue: T,
+  calculateChangedBits: ?(a: T, b: T) => number,
+): ReactContext<T> {
+  if (calculateChangedBits === undefined) {
+    calculateChangedBits = null;
+  } else {
+    // _DEV_
+  }
+
+  const context: ReactContext<T> = {
+    $$typeof: REACT_CONTEXT_TYPE,
+    _calculateChangedBits: calculateChangedBits,
+    _currentValue: defaultValue,
+    _currentValue2: defaultValue,
+    _threadCount: 0,
+    // These are circular
+    Provider: (null: any),
+    Consumer: (null: any),
+  };
+
+  context.Provider = {
+    $$typeof: REACT_PROVIDER_TYPE,
+    _context: context,
+  };
+  if (__DEV__) {
+    // do something...
+    context.Consumer = Consumer;
+  } else {
+    context.Consumer = context;
+  }
+
+  return context;
+}
+```
+可以看出最后返回的 context 就是一个对象，其中包含 Provider 和 Consumer 两个 React 的组件
+
+
+
